@@ -1,0 +1,20 @@
+// https://aka.ms/devcontainer.json
+{
+	"name": "Kindle app",
+	"build": {
+		"dockerfile": "Dockerfile",
+		"args": {
+			"platform": "kindlehf"
+		}
+	},
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"mesonbuild.mesonbuild",
+				"ms-vscode.cpptools",
+				"golang.go"
+			]
+		}
+	},
+	"remoteUser": "root",
+}

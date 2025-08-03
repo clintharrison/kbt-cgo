@@ -193,7 +193,20 @@ func scanResultCallback(scan_instance C.aceBT_scanInstanceHandle, record *C.aceB
 
 //export scanChangeCallback
 func scanChangeCallback(scan_instance C.aceBT_scanInstanceHandle, state C.aceBT_beaconScanState_t, interval uint32, window uint32) {
-	slog.Info("Beacon scan state changed", "scan_instance", scan_instance, "state", state, "interval", interval, "window", window)
+	stateStr := "unknown"
+	switch state {
+	case C.ACEBT_BEACON_SCAN_FAILED:
+		stateStr = "failed"
+	case C.ACEBT_BEACON_SCAN_QUEUED:
+		stateStr = "queued"
+	case C.ACEBT_BEACON_SCAN_STARTED:
+		stateStr = "started"
+	case C.ACEBT_BEACON_SCAN_PAUSED:
+		stateStr = "paused"
+	case C.ACEBT_BEACON_SCAN_STOPPED:
+		stateStr = "stopped"
+	}
+	slog.Info("Beacon scan state changed", "state", stateStr, "interval", interval, "window", window)
 }
 
 //export onBeaconClientRegistered

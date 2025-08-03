@@ -1,0 +1,3 @@
+[submodule "include/ace"]
+	path = include/ace
+	url = https://github.com/notmarek/ace_headers

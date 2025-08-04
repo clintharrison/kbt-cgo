@@ -79,8 +79,6 @@ func main() {
 	devicesSeen := make(map[ace.Address]bool)
 	deviceFoundChan := make(chan struct{})
 
-	_ = adapter.PrintRadioState()
-
 	err = adapter.Scan(func(adapter *ace.AceAdapter, device ace.ScanResult) {
 		if _, ok := devicesSeen[device.Address()]; ok {
 			// quietly ignore devices we've already seen
@@ -90,8 +88,8 @@ func main() {
 
 		if device.Name() == "<unknown>" {
 			slog.Debug("found unnamed device", "address", device.Address().ToString(), "rssi", device.RSSI(), "tx_power", device.TxPower())
-		} else if strings.HasPrefix(device.Name(), "Aranet4 ") {
-			slog.Info("found Aranet4 device, stopping scan", "address", device.Address().ToString(), "rssi", device.RSSI(), "tx_power", device.TxPower())
+		} else if strings.HasPrefix(device.Name(), "Lightblue") {
+			slog.Info("found Lightblue device, stopping scan", "address", device.Address().ToString(), "rssi", device.RSSI(), "tx_power", device.TxPower())
 			// Stop the scan after finding the device
 			if err := adapter.StopScan(); err != nil {
 				slog.Error("failed to stop scan", "error", err)

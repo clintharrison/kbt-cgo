@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log/slog"
 	"sync"
+	"time"
 	"unsafe"
 
 	"github.com/clintharrison/kbt-cgo/pkg/withlock"
@@ -144,6 +145,20 @@ func InitAdapterWithSession() (*AceAdapter, error) {
 	if err := adapter.OpenSession(); err != nil {
 		return nil, err
 	}
+
+	state, err := adapter.RadioState()
+	if err != nil {
+		slog.Error("Failed to get radio state", "error", err)
+		return nil, err
+	}
+	if state != RadioEnabled {
+		slog.Info("Radio is not enabled", "state", state)
+		err = adapter.EnableRadio()
+		if err != nil {
+			slog.Error("Failed to enable radio", "error", err)
+			return nil, err
+		}
+	}
 	return adapter, nil
 }
 
@@ -158,11 +173,62 @@ func (a *AceAdapter) OpenSession() error {
 	return nil
 }
 
-func (a *AceAdapter) PrintRadioState() error {
+type AceRadioState int
+
+const (
+	RadioDisabled AceRadioState = iota
+	RadioEnabled
+	RadioEnabling
+	RadioDisabling
+)
+
+func (a *AceAdapter) RadioState() (AceRadioState, error) {
 	var radioState C.aceBT_state_t
 	bleStatus := C.aceBT_getRadioState(&radioState)
-	slog.Info("radio state", "state", radioState, "bleStatus", bleStatus, "statusAsErr", errForStatus(bleStatus))
-	return nil
+	if err := errForStatus(bleStatus); err != nil {
+		slog.Error("Failed to get radio state", "status", bleStatus, "error", err)
+		return RadioDisabled, err
+	}
+	switch radioState {
+	case C.ACEBT_STATE_DISABLED:
+		return RadioDisabled, nil
+	case C.ACEBT_STATE_ENABLED:
+		return RadioEnabled, nil
+	case C.ACEBT_STATE_ENABLING:
+		return RadioEnabling, nil
+	case C.ACEBT_STATE_DISABLING:
+		return RadioDisabling, nil
+	default:
+		return RadioDisabled, fmt.Errorf("unknown radio state: %d", radioState)
+	}
+}
+
+const readyWaitDelay = 500 * time.Millisecond
+
+func (a *AceAdapter) EnableRadio() error {
+	maxRetries := 10
+	if sessionHandle == nil {
+		return errors.New("session handle is nil, cannot enable radio")
+	}
+	slog.Info("Enabling radio", "sessionHandle", fmt.Sprintf("%p", sessionHandle))
+
+	if err := errForStatus(C.aceBT_enableRadio(sessionHandle)); err != nil {
+		slog.Error("failed to enable radio", "error", err)
+	}
+
+	for i := 0; i < maxRetries; i++ {
+		radioState, err := a.RadioState()
+		if err != nil {
+			slog.Error("failed to get radio state", "error", err)
+			return err
+		}
+		if radioState == RadioEnabled {
+			slog.Debug("radio is enabled, quitting retry loop")
+			return nil
+		}
+		time.Sleep(readyWaitDelay)
+	}
+	return fmt.Errorf("radio did not enable after %d retries", maxRetries)
 }
 
 func (a *AceAdapter) RegisterBeacon() error {
